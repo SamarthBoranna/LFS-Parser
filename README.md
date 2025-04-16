@@ -2,6 +2,7 @@
 
 **Updates:**
 - Project updates will be added here.
+- Test cases will be released later this week. For now work on parsing the given image files in `sample_files`.
 
 File systems are the backbone of how data is stored, managed, and accessed on a disk. 
 The log-structured file system (LFS) was developed in the early 1990s as a solution to common file system inefficiencies, particularly regarding write performance and sequential versus random I/O operations
