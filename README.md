@@ -284,7 +284,7 @@ we may try to access non-existent files. We will also test for memory leaks.
 - Run `submission.sh` 
 - Download generated tar file
 - Upload it to Canvas
-  * Links to Canvas assignment (update): 
-  * [Prof. Mike Swift's class](https://canvas.wisc.edu/courses/434150/assignments/2650864) 
-  * [Prof. Ali Abedi's class](https://canvas.wisc.edu/courses/434155/assignments/2650866) 
+  * Links to Canvas assignment: 
+  * [Prof. Mike Swift's class](https://canvas.wisc.edu/courses/434150/assignments/2659202)
+  * [Prof. Ali Abedi's class](https://canvas.wisc.edu/courses/434155/assignments/2659204)
 
