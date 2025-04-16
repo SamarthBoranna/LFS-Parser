@@ -249,9 +249,8 @@ we may try to access non-existent files. We will also test for memory leaks.
 ## Administrivia 
 - **Due Date** by April 28, 2025 at 11:59 PM
 - Questions: We will be using Piazza for all questions.
-- Collaboration: You may work with a partner for this project. If you
-  do, you will also submit a partners.txt file with the cslogins of
-  both individuals in your group when you turn in the project in the
+- Collaboration: You may work with a partner for this project. Even if you don't, you must submit a partners.csv file with the cslogins of
+  both individuals in your group (just your login under cslogin1 if working alone) when you turn in the project in the
   top-level directory of your submission. Copying
   code (from other groups) is considered cheating. [Read
   this](http://pages.cs.wisc.edu/~remzi/Classes/537/Spring2018/dontcheat.html)
@@ -277,7 +276,7 @@ we may try to access non-existent files. We will also test for memory leaks.
   │  ├─ parse_lfs.h
   ├─ tests/
   ├─ ...
-  ├─ partners.txt
+  ├─ partners.csv
   ```
 
 ## Submitting your work
