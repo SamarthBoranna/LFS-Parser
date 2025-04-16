@@ -73,8 +73,8 @@ accepted practices
 `parse_lfs cat` should search the LFS image tree using the given filepath and print the data contents of the file.
 Make sure to only print the contents of the file and not left over bytes in the data block!
 
-You can assume that the file path given will start at root (example: `/dir/foo/bar.txt`.) However, your parser should **logically** (`.` and `..` files are not actually in the image!) support
-`.` and `..` in the file path. So all of the below paths are valid:
+You can assume that the file path given will start at root (example: `/dir/foo/bar.txt`.) However, your parser should **logically** support
+`.` and `..` in the file path (`.` and `..` files are not actually in the image!). So all of the below paths are valid:
 
 ```
 $ ./bin/parse_lfs cat /dir/b/bar.txt ./sample_files/a.img
