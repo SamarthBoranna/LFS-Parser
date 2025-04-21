@@ -84,7 +84,7 @@ $ ./bin/parse_lfs cat /dir/c/../b/bar.txt ./sample_files/a.img
 
 **Error handling**
 
-If `./parse_lfs cat` is called on a non-existent file or bad file path your program should return -1 and print to stderr:
+If `./parse_lfs cat` is called on a non-existent file or bad file path your program should return 1 and print to stderr:
 
 ```
 parse_lfs error: Failed to find file.
