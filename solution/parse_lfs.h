@@ -8,6 +8,11 @@
 
 #include "../lib/lib.h" // Provides ls_print_file(...)
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
+#include <string.h>
+
 // You may need more includes!
 
 // Can add more structs, change, extend, or delete these.
