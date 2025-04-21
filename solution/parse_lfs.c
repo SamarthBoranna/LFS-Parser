@@ -3,6 +3,6 @@
 int main(int argc, char ** argv)
 {
     // P6 goes here
-
+    
     return 0;
 }
