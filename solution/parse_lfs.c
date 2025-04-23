@@ -186,6 +186,7 @@ int main(int argc, char ** argv)
     int fd;
     char *img_base;
     struct stat st;
+    int inst_flag = -1;
 
     if(argc > 4){
         exit(1);
@@ -198,10 +199,12 @@ int main(int argc, char ** argv)
         char *file_to_cat = strdup(argv[2]);
         printf("inst: %s, img_path: %s, file_to_cat: %s\n", instruction, img_path, file_to_cat);
         free(file_to_cat);
+        inst_flag = 0;
     }
     else if(argc == 3 && (strcmp(instruction, "ls") == 0)){
         img_path = strdup(argv[2]); //need to free
         printf("inst: %s, img_path: %s\n", instruction, img_path);
+        inst_flag = 1;
     }
     else{
         exit(1);
@@ -231,6 +234,17 @@ int main(int argc, char ** argv)
     print_inodes();
 
     getfilenames(img_base);
+
+    if(inst_flag == 1){
+
+    }
+    else if(inst_flag == 0){
+
+    }else{
+        free(instruction);
+        free(img_path);
+        exit(1);
+    }
 
     free(instruction);
     free(img_path);
