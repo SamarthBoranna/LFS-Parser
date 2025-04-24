@@ -66,6 +66,7 @@ int node_mapping(char *base){
         uint direct_count = *(uint *)(node_base + 20);
 
         nodes[i].inumber = inode_num;
+        nodes[i].filename = NULL;
         nodes[i].file_cursor = file_cursor;
         nodes[i].size = size;
         nodes[i].permissions = permissions;
@@ -73,6 +74,8 @@ int node_mapping(char *base){
         nodes[i].num_direct_blocks = direct_count;
         nodes[i].dir_block_offs = NULL;
         nodes[i].parent_inum = UINT_MAX;
+        nodes[i].children = NULL;
+        nodes[i].num_children = 0;
         get_dir_offsets(&nodes[i], node_base + 24);
     }
 
@@ -126,7 +129,6 @@ void getfilenames(char *base){
                 
                 for(int k = 0; k<(int)imap->num_entries; k++){
                     if(nodes[k].inumber == inode_match){
-                        free(nodes[k].filename);
                         nodes[k].filename = strdup(name);
                         nodes[k].parent_inum = parent_num;
                         break;
@@ -171,12 +173,27 @@ int setDepth(){
     return 0;
 }
 
-void ls_func(){
-    for(int i = 0; i < (int)imap->num_entries; i++){
-        Inode node = nodes[i];
-        if(node.inumber == 0){continue;}
-        ls_print_file(node.filename, node.size, node.permissions, node.mtime, node.depth);
+int setChildren(){
+    for(int i = 0; i<(int)imap->num_entries; i++){
+        if(!S_ISDIR(nodes[i].permissions)) continue;
+        uint parent_num = nodes[i].inumber;
+        int count = 0;
+        for(int j = 0;  j<(int)imap->num_entries; j++){
+            if(nodes[j].parent_inum == parent_num) count += 1;
+        }
+        nodes[i].num_children = count;
+        if(count != 0){
+            int index = 0;
+            nodes[i].children = malloc(count * sizeof(Inode *));
+            for(int j = 0;  j<(int)imap->num_entries; j++){
+                if(nodes[j].parent_inum == parent_num){
+                    nodes[i].children[index] = &nodes[j];
+                    index += 1;
+                }
+            }
+        }
     }
+    return 0;
 }
 
 void printCR(){
@@ -198,16 +215,27 @@ void printImap(){
     }
 }
 
-void print_inodes(int offsets){
+void print_inodes(int offsets, int children){
     for(int i = 0; i<(int)imap->num_entries; i++){
         uint node_dirs = nodes[i].num_direct_blocks;
         printf("Node %d\n", i);
+        if(S_ISDIR(nodes[i].permissions)){
+            printf("Directory\n");
+        }
+        else{
+            printf("File\n");
+        }
         printf("Filename: %s\n", nodes[i].filename);
         printf("Inode Number: %d\n", nodes[i].inumber);
         printf("Parent Num: %d\n", nodes[i].parent_inum);
         if(offsets != 0){
             for(int j = 0; j < (int)node_dirs; j++){
                 printf("offset %d: %d\n", j, nodes[i].dir_block_offs[j]);
+            }
+        }
+        if(children != 0 && nodes[i].num_children > 0){
+            for(int j = 0; j < nodes[i].num_children; j++){
+                printf("Child %d Name: %s\n",j, nodes[i].children[j]->filename);
             }
         }
         printf("\n");
@@ -273,12 +301,12 @@ int main(int argc, char ** argv)
     node_mapping(img_base);
     getfilenames(img_base);
 
-    //print_inodes(0);
-
     setDepth();
+    setChildren();
+
+    //print_inodes(0, 1);
 
     if(inst_flag == LS){
-        ls_func();
     }
     else if(inst_flag == CAT){
 
@@ -287,6 +315,30 @@ int main(int argc, char ** argv)
         free(img_path);
         exit(1);
     }
+
+
+    for(int i = 0; i<(int)imap->num_entries; i++){
+        if(nodes[i].dir_block_offs != NULL){
+            free(nodes[i].dir_block_offs);
+        }
+        if(nodes[i].children != NULL){
+            free(nodes[i].children);
+        }
+        if(nodes[i].filename != NULL){
+            free(nodes[i].filename);
+        }
+    }
+    free(nodes);
+
+    if(imap->InodeEntry_arr != NULL){
+        free(imap->InodeEntry_arr);
+    }
+    free(imap);
+
+    if(checkpoint_region->ImapEntry_arr){
+        free(checkpoint_region->ImapEntry_arr);
+    }
+    free(checkpoint_region);
 
     free(instruction);
     free(img_path);

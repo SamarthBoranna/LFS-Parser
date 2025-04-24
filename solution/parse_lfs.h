@@ -25,7 +25,7 @@
 
 
 // Can add more structs, change, extend, or delete these.
-typedef struct{
+typedef struct Inode{
     uint inumber;
     char *filename;
     uint file_cursor;
@@ -36,6 +36,8 @@ typedef struct{
     uint *dir_block_offs;
     uint parent_inum;
     uint depth;
+    struct Inode **children;
+    int num_children;
 
     // Could have one or more entries pointing to data block 
     // Each entry is:
