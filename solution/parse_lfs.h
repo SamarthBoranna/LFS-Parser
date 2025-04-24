@@ -1,6 +1,9 @@
 #ifndef PARSE_LFS_H
 #define PARSE_LFS_H
 
+#define LS 0
+#define CAT 1
+
 // See `man inode` for more on bitmasks.
 #include <sys/stat.h> // Provides mode_t, S_ISDIR, etc.
 
@@ -16,6 +19,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <limits.h>
 
 // You may need more includes!
 
@@ -28,10 +32,10 @@ typedef struct{
     uint size;
     mode_t permissions;
     time_t mtime;
-
     uint num_direct_blocks;
-
     uint *dir_block_offs;
+    uint parent_inum;
+    uint depth;
 
     // Could have one or more entries pointing to data block 
     // Each entry is:

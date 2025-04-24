@@ -17,41 +17,22 @@ void initCheckpoint(){
     checkpoint_region->ImapEntry_arr = NULL;
 }
 
-
-void getfilenames(char *base){
-    for(int i = 0; i<(int)imap->num_entries; i++){
-        Inode *node = &nodes[i];
-        if(!S_ISDIR(node->permissions)) continue;
-
-        for(int j = 0; j<(int)node->num_direct_blocks; j++){
-            char *dblock_base = base + node->dir_block_offs[j];
-            size_t curr = 0;
-            while(curr < 4096){
-                char *ret = memchr(dblock_base + curr, ',', 4096 - curr);
-                if(!ret) break;
-                size_t length = ret - (dblock_base + curr);
-                char *name = malloc(length + 1);
-                memcpy(name, dblock_base + curr, length);
-                name[length] = '\0';
-
-                uint inode_match;
-                memcpy(&inode_match, ret + 1, sizeof(uint));
-
-                printf("filename: %s\n", name);
-                printf("inode number: %d\n", inode_match);
-                
-                for(int k = 0; k<(int)imap->num_entries; k++){
-                    if(nodes[k].inumber == inode_match){
-                        free(nodes[k].filename);
-                        nodes[k].filename = strdup(name);
-                        break;
-                    }
-                }
-    
-                free(name);
-                curr += length + 1 + sizeof(uint);
-            }
-        }
+void parse_checkpoint_region(char *base){
+    uint image_offset = *(uint *)(base);
+    char *entry_count_path = base + 4;
+    uint entry_count = *(uint *)(entry_count_path);
+    checkpoint_region->image_offset = image_offset;
+    checkpoint_region->num_entries = entry_count;
+    checkpoint_region->ImapEntry_arr = malloc(entry_count * sizeof(ImapEntry));
+    char *next_entry_path = entry_count_path + 4;
+    for(int i = 0; i < (int)entry_count; i++){
+        uint inumber_start = *(uint *)(next_entry_path);
+        uint inumber_end = *(uint *)(next_entry_path + 4);
+        uint imap_disk_offset = *(uint *)(next_entry_path + 8);
+        checkpoint_region->ImapEntry_arr[i].inumber_start = inumber_start;
+        checkpoint_region->ImapEntry_arr[i].inumber_end = inumber_end;
+        checkpoint_region->ImapEntry_arr[i].imap_disk_offset = imap_disk_offset;
+        next_entry_path = next_entry_path + 12;
     }
 }
 
@@ -91,32 +72,12 @@ int node_mapping(char *base){
         nodes[i].mtime = mtime;
         nodes[i].num_direct_blocks = direct_count;
         nodes[i].dir_block_offs = NULL;
-        printf("Before get_dir_offsets call\n");
+        nodes[i].parent_inum = UINT_MAX;
         get_dir_offsets(&nodes[i], node_base + 24);
     }
 
     return 0;
 }
-
-void print_inodes(){
-    for(int i = 0; i<(int)imap->num_entries; i++){
-        uint node_dirs = nodes[i].num_direct_blocks;
-        printf("Node %d\n", i);
-        for(int j = 0; j < (int)node_dirs; j++){
-            printf("offset %d: %d\n", j, nodes[i].dir_block_offs[j]);
-        }
-    }
-}
-
-void printImap(){
-    printf("Imap entries: %d\n", imap->num_entries);
-    for(int i = 0; i<(int)imap->num_entries; i++){
-        printf("Entry %d\n", i);
-        printf("inumber: %d\n", imap->InodeEntry_arr[i].inumber);
-        printf("inode offset: %d\n", imap->InodeEntry_arr[i].inode_disk_offset);
-    }
-}
-
 
 void parse_imap(char *base){
     int num_entries = (int)checkpoint_region->num_entries;
@@ -144,6 +105,80 @@ void parse_imap(char *base){
     return;
 }
 
+void getfilenames(char *base){
+    for(int i = 0; i<(int)imap->num_entries; i++){
+        Inode *node = &nodes[i];
+        if(!S_ISDIR(node->permissions)) continue;
+
+        uint parent_num = node->inumber;
+        for(int j = 0; j<(int)node->num_direct_blocks; j++){
+            char *dblock_base = base + node->dir_block_offs[j];
+            size_t curr = 0;
+            while(curr < 4096){
+                char *ret = memchr(dblock_base + curr, ',', 4096 - curr);
+                if(!ret) break;
+                size_t length = ret - (dblock_base + curr);
+                char *name = malloc(length + 1);
+                memcpy(name, dblock_base + curr, length);
+                name[length] = '\0';
+                uint inode_match;
+                memcpy(&inode_match, ret + 1, sizeof(uint));
+                
+                for(int k = 0; k<(int)imap->num_entries; k++){
+                    if(nodes[k].inumber == inode_match){
+                        free(nodes[k].filename);
+                        nodes[k].filename = strdup(name);
+                        nodes[k].parent_inum = parent_num;
+                        break;
+                    }
+                }
+                free(name);
+                curr += length + 1 + sizeof(uint);
+            }
+        }
+    }
+}
+
+
+int getDepth(uint parentNum){
+    if(parentNum == UINT_MAX){
+        return 0;
+    }
+    else{
+        for(int i = 0; i < (int)imap->num_entries; i++){
+            if(nodes[i].inumber == parentNum){
+                return 1 + getDepth(nodes[i].parent_inum);
+            }
+        }
+    }
+    return -1;
+}
+
+
+int setDepth(){
+    for(int i = 1; i<(int)imap->num_entries; i++){
+        int depth = getDepth(nodes[i].parent_inum);
+        if(depth == -1){
+            return -1;
+        }
+        else if(depth == 0){
+            nodes[i].depth = UINT_MAX;
+        }
+        else{
+            nodes[i].depth = depth;
+        }
+    }
+    return 0;
+}
+
+void ls_func(){
+    for(int i = 0; i < (int)imap->num_entries; i++){
+        Inode node = nodes[i];
+        if(node.inumber == 0){continue;}
+        ls_print_file(node.filename, node.size, node.permissions, node.mtime, node.depth);
+    }
+}
+
 void printCR(){
     printf("CR offset: %d\n", checkpoint_region->image_offset);
     printf("CR entries: %d\n", checkpoint_region->num_entries);
@@ -154,23 +189,28 @@ void printCR(){
     }
 }
 
-void parse_checkpoint_region(char *base){
-    uint image_offset = *(uint *)(base);
-    char *entry_count_path = base + 4;
-    uint entry_count = *(uint *)(entry_count_path);
-    checkpoint_region->image_offset = image_offset;
-    checkpoint_region->num_entries = entry_count;
-    checkpoint_region->ImapEntry_arr = malloc(entry_count * sizeof(ImapEntry));
-    char *next_entry_path = entry_count_path + 4;
-    for(int i = 0; i < (int)entry_count; i++){
-        printf("Entry: %d\n", i);
-        uint inumber_start = *(uint *)(next_entry_path);
-        uint inumber_end = *(uint *)(next_entry_path + 4);
-        uint imap_disk_offset = *(uint *)(next_entry_path + 8);
-        checkpoint_region->ImapEntry_arr[i].inumber_start = inumber_start;
-        checkpoint_region->ImapEntry_arr[i].inumber_end = inumber_end;
-        checkpoint_region->ImapEntry_arr[i].imap_disk_offset = imap_disk_offset;
-        next_entry_path = next_entry_path + 12;
+void printImap(){
+    printf("Imap entries: %d\n", imap->num_entries);
+    for(int i = 0; i<(int)imap->num_entries; i++){
+        printf("Entry %d\n", i);
+        printf("inumber: %d\n", imap->InodeEntry_arr[i].inumber);
+        printf("inode offset: %d\n", imap->InodeEntry_arr[i].inode_disk_offset);
+    }
+}
+
+void print_inodes(int offsets){
+    for(int i = 0; i<(int)imap->num_entries; i++){
+        uint node_dirs = nodes[i].num_direct_blocks;
+        printf("Node %d\n", i);
+        printf("Filename: %s\n", nodes[i].filename);
+        printf("Inode Number: %d\n", nodes[i].inumber);
+        printf("Parent Num: %d\n", nodes[i].parent_inum);
+        if(offsets != 0){
+            for(int j = 0; j < (int)node_dirs; j++){
+                printf("offset %d: %d\n", j, nodes[i].dir_block_offs[j]);
+            }
+        }
+        printf("\n");
     }
 }
 
@@ -192,19 +232,19 @@ int main(int argc, char ** argv)
         exit(1);
     }
 
-    instruction = strdup(argv[1]); //need to free
-
-    if(argc == 4 && (strcmp(instruction, "cat") == 0)){
+    instruction = strdup(argv[1]);
+    
+    if(argc == 3 && (strcmp(instruction, "ls") == 0)){
+        img_path = strdup(argv[2]);
+        //printf("inst: %s, img_path: %s\n", instruction, img_path);
+        inst_flag = LS;
+    }
+    else if(argc == 4 && (strcmp(instruction, "cat") == 0)){
         img_path = strdup(argv[3]);
         char *file_to_cat = strdup(argv[2]);
-        printf("inst: %s, img_path: %s, file_to_cat: %s\n", instruction, img_path, file_to_cat);
+        //printf("inst: %s, img_path: %s, file_to_cat: %s\n", instruction, img_path, file_to_cat);
         free(file_to_cat);
-        inst_flag = 0;
-    }
-    else if(argc == 3 && (strcmp(instruction, "ls") == 0)){
-        img_path = strdup(argv[2]); //need to free
-        printf("inst: %s, img_path: %s\n", instruction, img_path);
-        inst_flag = 1;
+        inst_flag = CAT;
     }
     else{
         exit(1);
@@ -223,22 +263,24 @@ int main(int argc, char ** argv)
     size_t size = st.st_size;
     img_base = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
     parse_checkpoint_region(img_base);
-    printCR();
+    //printCR();
 
     parse_imap(img_base);
-    printImap();
+    //printImap();
 
     nodes = malloc(imap->num_entries * sizeof(Inode));
 
     node_mapping(img_base);
-    print_inodes();
-
     getfilenames(img_base);
 
-    if(inst_flag == 1){
+    //print_inodes(0);
 
+    setDepth();
+
+    if(inst_flag == LS){
+        ls_func();
     }
-    else if(inst_flag == 0){
+    else if(inst_flag == CAT){
 
     }else{
         free(instruction);
