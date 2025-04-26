@@ -306,6 +306,86 @@ void print_tree(Inode *node, char *base, int depth) {
     }
 }
 
+Inode* find_inode_by_path(char *path, Inode *root) {
+    if (strcmp(path, "/") == 0) return root;
+    
+    // Tokenize path by '/'
+    char *path_copy = strdup(path);
+    char *component = strtok(path_copy, "/");
+
+    Inode *curr = root;
+    while (component != NULL) {
+        int found = 0;
+        
+        // Handle special cases
+        if (strcmp(component, ".") == 0) {
+            found = 1;
+        }
+        else if (strcmp(component, "..") == 0) {
+            found = 1;
+            if (curr->parent_inum != UINT_MAX) { // Check if we are at root
+                for (int i = 0; i < (int)imap->num_entries; i++) {
+                    if (nodes[i].inumber == curr->parent_inum) {
+                        curr = &nodes[i];
+                        break;
+                    }
+                }
+            }
+        }
+        else {
+            // Make sure curr is a directory node
+            if (!S_ISDIR(curr->permissions)) {
+                free(path_copy);
+                return NULL;
+            }
+            
+            // Search curr children for component and iterate searching
+            for (int i = 0; i < curr->num_children; i++) {
+                if (strcmp(curr->children[i]->filename, component) == 0) {
+                    curr = curr->children[i];
+                    found = 1;
+                    break;
+                }
+            }
+        }
+        
+        if (!found) {
+            free(path_copy);
+            return NULL;
+        }
+        
+        // Move to next component if previous one is found
+        component = strtok(NULL, "/"); 
+    }
+    
+    free(path_copy);
+    return curr;
+}
+
+void print_file_contents(Inode *file, char *base) {
+    if (file == NULL || S_ISDIR(file->permissions)) {
+        fprintf(stderr, "parse_lfs error: Failed to find file.\n");
+        exit(1);
+    }
+
+    uint remaining = file->size;
+    for (int i = 0; i < (int)file->num_direct_blocks && remaining > 0; i++) {
+        char *data_block = base + file->dir_block_offs[i];
+        uint data = 0;
+        if (remaining > 4096)
+            data = 4096;
+        else
+            data = remaining; 
+        
+        // Print only needed bytes
+        if (fwrite(data_block, 1, data, stdout) != data) {
+            fprintf(stderr, "parse_lfs error: Failed to write file contents\n");
+            exit(1);
+        }
+        remaining -= data;
+    }
+}
+
 int main(int argc, char ** argv)
 {
     // P6 goes here
@@ -391,7 +471,27 @@ int main(int argc, char ** argv)
         print_tree(root, img_base, 0);
     }
     else if(inst_flag == CAT){
+        char *file_to_cat = strdup(argv[2]);
+        Inode *root = NULL;
+        for (int i = 0; i < (int)imap->num_entries; i++) {
+            if (nodes[i].inumber == 0) {
+                root = &nodes[i];
+                break;
+            }
+        }
 
+        if (root == NULL) {
+            fprintf(stderr, "parse_lfs error: Root directory not found\n");
+            exit(1);
+        }
+
+        if (root->filename == NULL) {
+            root->filename = strdup("/");
+        }
+
+        Inode *target = find_inode_by_path(file_to_cat, root);
+        free(file_to_cat);
+        print_file_contents(target, img_base);
     }else{
         free(instruction);
         free(img_path);
