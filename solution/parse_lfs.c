@@ -114,30 +114,58 @@ void getfilenames(char *base){
         if(!S_ISDIR(node->permissions)) continue;
 
         uint parent_num = node->inumber;
-        for(int j = 0; j<(int)node->num_direct_blocks; j++){
-            char *dblock_base = base + node->dir_block_offs[j];
-            size_t curr = 0;
-            while(curr < 4096){
-                char *ret = memchr(dblock_base + curr, ',', 4096 - curr);
-                if(!ret) break;
-                size_t length = ret - (dblock_base + curr);
-                char *name = malloc(length + 1);
-                memcpy(name, dblock_base + curr, length);
-                name[length] = '\0';
-                uint inode_match;
-                memcpy(&inode_match, ret + 1, sizeof(uint));
-                
-                for(int k = 0; k<(int)imap->num_entries; k++){
-                    if(nodes[k].inumber == inode_match){
-                        nodes[k].filename = strdup(name);
-                        nodes[k].parent_inum = parent_num;
-                        break;
-                    }
-                }
-                free(name);
-                curr += length + 1 + sizeof(uint);
-            }
+
+        // Calculate and malloc total size for all directory blocks
+        size_t total_size = 0;
+        for (int j = 0; j < (int)node->num_direct_blocks; j++) {
+            total_size += 4096;
         }
+        char *dir_data = malloc(total_size);
+        if (!dir_data) {
+            perror("malloc");
+            exit(1);
+        }
+
+        // Copy directory blocks into buffer
+        size_t offset = 0;
+        for (int j = 0; j < (int)node->num_direct_blocks; j++) {
+            memcpy(dir_data + offset, base + node->dir_block_offs[j], 4096);
+            offset += 4096;
+        }
+
+        size_t curr = 0;
+        while (curr < total_size) {
+            char *ret = memchr(dir_data + curr, ',', total_size - curr);
+            if(!ret) break;
+            size_t length = ret - (dir_data + curr);
+            char *name = malloc(length + 1);
+            if (!name) {
+                perror("malloc");
+                exit(1);
+            }
+            memcpy(name, dir_data + curr, length);
+            name[length] = '\0';
+
+            // Make sure theres enough space for inumber
+            if (curr + length + 1 + sizeof(uint) > total_size) {
+                free(name);
+                break;
+            }
+
+            uint inode_match;
+            memcpy(&inode_match, ret + 1, sizeof(uint));
+            
+            for(int k = 0; k<(int)imap->num_entries; k++){
+                if(nodes[k].inumber == inode_match){
+                    nodes[k].filename = strdup(name);
+                    nodes[k].parent_inum = parent_num;
+                    break;
+                }
+            }
+            free(name);
+            curr += length + 1 + sizeof(uint);
+        }
+        free(dir_data);
     }
 }
 
@@ -242,6 +270,42 @@ void print_inodes(int offsets, int children){
     }
 }
 
+int compare_nodes(const void *a, const void *b) {
+    const Inode *node_a = *(const Inode **)a;
+    const Inode *node_b = *(const Inode **)b;
+
+    // If both directory or both file then compare
+    if ((S_ISDIR(node_a->permissions) && S_ISDIR(node_b->permissions)) || (!S_ISDIR(node_a->permissions) && !S_ISDIR(node_b->permissions))) {
+        return strcmp(node_a->filename, node_b->filename);
+    }
+
+    if (S_ISDIR(node_a->permissions)) {
+        return 1;
+    }
+    return -1;
+}
+
+void print_tree(Inode *node, char *base, int depth) {
+    // Print root
+    if (node->inumber == 0) {
+        printf("/\n");
+        depth = 0;
+    } 
+
+    // Print non root
+    if (node->inumber != 0) {
+        ls_print_file(node->filename, node->size, node->permissions, node->mtime, depth);
+    }
+
+    // Recursively print children, increasing depth
+    if (S_ISDIR(node->permissions)) {
+        qsort(node->children, node->num_children, sizeof(Inode *), compare_nodes);
+        for (int i = 0; i < node->num_children; i++) {
+            print_tree(node->children[i], base, depth+1);
+        }
+    }
+}
+
 int main(int argc, char ** argv)
 {
     // P6 goes here
@@ -307,6 +371,24 @@ int main(int argc, char ** argv)
     //print_inodes(0, 1);
 
     if(inst_flag == LS){
+        Inode *root = NULL;
+        for (int i = 0; i < (int)imap->num_entries; i++) {
+            if (nodes[i].inumber == 0) {
+                root = &nodes[i];
+                break;
+            }
+        }
+
+        if (root == NULL) {
+            fprintf(stderr, "parse_lfs error: Root directory not found\n");
+            exit(1);
+        }
+
+        if (root->filename == NULL) {
+            root->filename = strdup("/");
+        }
+
+        print_tree(root, img_base, 0);
     }
     else if(inst_flag == CAT){
 
