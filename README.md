@@ -1,15 +1,11 @@
 # Parse\_LFS
 
-**Updates:**
-- Project updates will be added here.
-- Test cases will be released later this week. For now work on parsing the given image files in `sample_files`.
-
 File systems are the backbone of how data is stored, managed, and accessed on a disk. 
 The log-structured file system (LFS) was developed in the early 1990s as a solution to common file system inefficiencies, particularly regarding write performance and sequential versus random I/O operations
 (see the textbook for why this is the case).
 LFS addresses these issues by buffering both data and metadata in memory and subsequently writing them in large sequential segments. This design leverages the disk's sequential bandwidth, significantly improving performance.
 
-In this project, you will develop a parser (`parse_lfs`) that reads an image file representing a log-structured file system on the disk.
+In this project, I developed a parser (`parse_lfs`) that reads an image file representing a log-structured file system on the disk.
 Your parser will extract and interpret the underlying structure and metadata from the LFS image and use this information to print the LFS tree. Additionally, your parser should be able to
 extract specified files from the LFS image and print their contents.
 
@@ -17,13 +13,6 @@ extract specified files from the LFS image and print their contents.
 - Learn the basics of file system data structure organization (inode, imap, data block, etc.).
 - Understand how files are arranged in a log structured file system.
 - Understand how to reconstruct files from the log.
-
-## Background
-
-Understanding the basics of FS data structures is important for this project.
-
-- [File System Implementation](https://pages.cs.wisc.edu/~remzi/OSTEP/file-implementation.pdf)
-- [Log-structured File Systems](https://pages.cs.wisc.edu/~remzi/OSTEP/file-lfs.pdf)
 
 ## General Idea
 
@@ -240,50 +229,4 @@ Here is one path for approching the project:
 - You should now have all the data needed for the `ls` and `cat` operations.
 
 Start testing with `simple.img` as it contains only the root directory and files and no subdirectories.
-
-### Grading
-
-We will be testing your parser with a variety of LFS images for correctness. We will only use fully consistent images, but
-we may try to access non-existent files. We will also test for memory leaks.
-
-## Administrivia 
-- **Due Date** by April 28, 2025 at 11:59 PM
-- Questions: We will be using Piazza for all questions.
-- Collaboration: You may work with a partner for this project. Even if you don't, you must submit a partners.csv file with the cslogins of
-  both individuals in your group (just your login under cslogin1 if working alone) when you turn in the project in the
-  top-level directory of your submission. Copying
-  code (from other groups) is considered cheating. [Read
-  this](http://pages.cs.wisc.edu/~remzi/Classes/537/Spring2018/dontcheat.html)
-  for more info on what is OK and what is not. Please help us all have
-  a good semester by not doing this.
-- This project is to be done on the [lab
-  machines](https://csl.cs.wisc.edu/docs/csl/2012-08-16-instructional-facilities/),
-  so you can learn more about programming in C on a typical UNIX-based
-  platform (Linux).
-- A few sample tests are provided in the project repository. To run
-  them, execute `run-tests.sh` in the `tests/` directory. Try
-  `run-tests.sh -h` to learn more about the testing script. Note these
-  test cases are not complete, and you are encouraged to create more
-  on your own.
-- **No Slip Days!**:
-  - **There are no slip days for this assignment.** Instead, the late penalty is 10%
-    per day as opposed to the usual 20%.
-  - Example project directory structure. (some files are omitted)
-  ```
-  p6/
-  ├─ solution/
-  │  ├─ parse_lfs.c
-  │  ├─ parse_lfs.h
-  ├─ tests/
-  ├─ ...
-  ├─ partners.csv
-  ```
-
-## Submitting your work
-- Run `submission.sh` 
-- Download generated tar file
-- Upload it to Canvas
-  * Links to Canvas assignment: 
-  * [Prof. Mike Swift's class](https://canvas.wisc.edu/courses/434150/assignments/2659202)
-  * [Prof. Ali Abedi's class](https://canvas.wisc.edu/courses/434155/assignments/2659204)
 
